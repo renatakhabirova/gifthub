@@ -33,10 +33,12 @@ jobs:
         run: flutter pub get
 
       - name: Build
-        run: flutter build web --release --base-href "/gifthub/
+        run: flutter build web --release --base-href "/gifthub/"
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
+          publish_branch: main
+          force_orphan: true
