@@ -24,6 +24,10 @@ jobs:
         run: |
           sed -i "s/\$CONFIRMATION_CODE/${{ secrets.CONFIRMATION_CODE }}/g" web/index.html
 
+      - name: Create env config
+        run: |
+          echo "const String supabaseUrl = '${{ secrets.SUPABASE_URL }}'; final String supabaseKey = '${{ secrets.SUPABASE_KEY }}';" > lib/env_config.dart
+
       - name: Build web
         run: flutter build web --release --base-href "/gifthub/"
         env:
