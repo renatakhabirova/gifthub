@@ -17,29 +17,21 @@ jobs:
         with:
           channel: 'stable'
 
-
-      - name: Show Flutter version
-        run: |
-          flutter --version
-          dart --version
-
-      - name: Enable web
-        run: flutter config --enable-web
-
       - name: Install dependencies
-        run: |
-          flutter clean
-          flutter pub get
+        run: flutter pub get
 
-      - name: Build web (with detailed logging)
-        run: flutter build web --release --base-href "/gifthub/" --verbose
+      - name: Update index.html with environment variables
+        run: |
+          sed -i "s/\$CONFIRMATION_CODE/${{ secrets.CONFIRMATION_CODE }}/g" web/index.html
+
+      - name: Build web
+        run: flutter build web --release --base-href "/gifthub/"
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CONFIRMATION_CODE: ${{ secrets.CONFIRMATION_CODE }}
 
       - name: Deploy to GitHub Pages
-        if: success()
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
