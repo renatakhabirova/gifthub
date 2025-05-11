@@ -5,38 +5,56 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+permissions:
+  contents: write
 
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+
+      - name: Clear cache
+        run: |
+          rm -rf ~/.pub-cache
+          rm -rf .dart_tool/
+          rm -rf build/
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
       - name: Install dependencies
-        run: flutter pub get
-
-      - name: Update index.html with environment variables
         run: |
-          sed -i "s/\$CONFIRMATION_CODE/${{ secrets.CONFIRMATION_CODE }}/g" web/index.html
+          flutter clean
+          flutter pub get
 
       - name: Create env config
         run: |
-          echo "const String supabaseUrl = '${{ secrets.SUPABASE_URL }}'; final String supabaseKey = '${{ secrets.SUPABASE_KEY }}';" > .env
+          echo "const String supabaseUrl = '${{ secrets.SUPABASE_URL }}'; final String supabaseKey = '${{ secrets.SUPABASE_KEY }}';" > lib/env_config.dart
 
       - name: Build web
-        run: flutter build web --release --base-href "/gifthub/"
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          CONFIRMATION_CODE: ${{ secrets.CONFIRMATION_CODE }}
+        run: |
+          flutter build web \
+            --release \
+            --base-href "/gifthub/" \
+            --web-renderer html \
+            --verbose \
+            --dart-define=BUILD_VERSION=$(date +%s)
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy: ${{ github.sha }} [skip ci]'
+          enable_jekyll: false
+          keep_files: false
