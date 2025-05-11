@@ -106,19 +106,13 @@ class RegistrationFormState extends State<RegistrationForm> {
                 decoration: InputDecoration(labelText: "Номер телефона"),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\+\d\s\-\(\)]')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[\+\d\s]')),
                 ],
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return MessagesRu.fieldRequired;
                   }
 
-                  if (!RegExp(
-                      r'^\+7\s$[0-9]{3}$\s[0-9]{3}\s[0-9]{2}\s[0-9]{2}$')
-                      .hasMatch(value)) {
-                    return 'Введите корректный номер телефона (например, +7 (999) 999 99 99)';
-                  }
-                  return null;
                 },
               ),
               SizedBox(height: 12),

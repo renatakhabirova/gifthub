@@ -229,17 +229,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 decoration: InputDecoration(labelText: "Номер телефона"),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\+?[0-9]*$')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[\+\d\s]')),
                 ],
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return MessagesRu.fieldRequired;
                   }
-
-                  if (!RegExp(r'^\+7\d{10}$').hasMatch(value)) {
-                    return '${MessagesRu.invalidPhone}';
-                  }
-                  return null;
                 },
               ),
               SizedBox(height: 12),
