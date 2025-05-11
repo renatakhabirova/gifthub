@@ -40,7 +40,7 @@ dev_dependencies:
 flutter:
   generate: true
   assets:
-    - .env
+
     - assets/
     - assets/images/no_image.png
 
