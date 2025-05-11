@@ -20,15 +20,17 @@ import 'package:gifthub/themes/colors.dart';
 import 'package:gifthub/pages/mainpages.dart';
 import "package:url_strategy/url_strategy.dart";
 
+import 'env_config.dart' show supabaseKey, supabaseUrl;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setPathUrlStrategy();
 
   try {
-    await dotenv.load(fileName: ".env");
+
     await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL'] ?? '',
-      anonKey: dotenv.env['SUPABASE_KEY'] ?? '',
+      url: supabaseUrl,
+      anonKey: supabaseKey,
     );
     print('Supabase initialized successfully');
   } catch (e) {
