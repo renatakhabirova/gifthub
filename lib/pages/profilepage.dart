@@ -20,6 +20,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _addressController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _emailController = TextEditingController();
+  String? _passwordError;
 
   List<Map<String, dynamic>> _cities = [];
   int? _selectedCity;
@@ -327,75 +328,99 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   showDialog(
                     context: context,
-                    builder: (context) => AlertDialog(
+                    builder: (BuildContext context) => StatefulBuilder( // Используем StatefulBuilder для обновления состояния диалога
+                      builder: (context, setState) => AlertDialog(
+                        title: const Text('Подтвердите удаление аккаунта'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Введите пароль для подтверждения:'),
+                            TextFormField(
+                              controller: passwordController,
+                              obscureText: true,
+                              decoration: InputDecoration(
+                                labelText: 'Пароль',
+                                errorText: _passwordError,
 
-                      title: const Text('Подтвердите удаление аккаунта'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Введите пароль для подтверждения:'),
-                          TextField(
-                            controller: passwordController,
-                            obscureText: true,
-                            decoration: const InputDecoration(labelText: 'Пароль'),
+
+                              ),
+                              onChanged: (value) {
+
+                                if (_passwordError != null) {
+                                  setState(() {
+                                    _passwordError = null;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Отмена'),
+                            style: ButtonStyle(
+                                foregroundColor: MaterialStateProperty.all<Color>(darkGreen)
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final password = passwordController.text.trim();
+                              if (password.isEmpty) {
+                                setState(() {
+                                  _passwordError = 'Введите пароль';
+                                });
+                                return;
+                              }
+                              try {
+                                final response = await Supabase.instance.client.auth
+                                    .signInWithPassword(email: user.email!, password: password);
+
+                                if (response.user == null) {
+                                  throw 'invalid_password';
+                                }
+
+                                await Supabase.instance.client.rpc('delete_current_user');
+                                await Supabase.instance.client.auth.signOut();
+
+                                Navigator.of(context).pop();
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text(MessagesRu.deleteProfile)),
+                                );
+
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => NavigationExample()),
+                                );
+
+                              } catch (e) {
+                                if (e.toString() == 'invalid_password' ||
+                                    e.toString().contains('Invalid login credentials')) {
+                                  setState(() {
+                                    _passwordError = 'Неверный пароль';
+                                  });
+                                  return;
+                                }
+
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(MessagesRu.errorDeleteProfile)),
+                                );
+                              }
+                            },
+                            child: Text(
+                              'Удалить',
+                              style: TextStyle(
+                                fontFamily: 'segoeui',
+                                color: wishListIcon,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Отмена'),
-                          style: ButtonStyle(foregroundColor: MaterialStateProperty.all<Color>(darkGreen)),
-
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            final password = passwordController.text.trim();
-                            if (password.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Введите пароль')),
-                              );
-                              return;
-                            }
-
-                            try {
-
-                              final response = await Supabase.instance.client.auth
-                                  .signInWithPassword(email: user.email!, password: password);
-
-                              if (response.user == null) {
-                                throw Exception('Неверный пароль');
-                              }
-
-                              await Supabase.instance.client.rpc('delete_current_user');
-                              await Supabase.instance.client.auth.signOut();
-
-                              Navigator.of(context).pop(); // Закрываем диалог
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(MessagesRu.deleteProfile)),
-                              );
-
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (context) => NavigationExample()),
-                              );
-                            } catch (e) {
-                              Navigator.of(context).pop(); // Закрываем диалог
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text(
-                                    MessagesRu.errorDeleteProfile)),
-                              );
-                            }
-                          },
-                          child: Text('Удалить', style: TextStyle(
-                            fontFamily: 'segoeui',
-
-                            color: wishListIcon,
-                          ),),
-                        ),
-                      ],
                     ),
+
                   );
                 },
                 icon: Icon(Icons.delete_forever),

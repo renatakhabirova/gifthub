@@ -218,7 +218,7 @@ class _WishlistGridState extends State<WishlistGrid> {
                                       fontFamily: "segoeui",
                                     ),
                                     textAlign: TextAlign.center,
-                                    maxLines: 2,
+                                    maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
