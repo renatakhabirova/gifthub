@@ -106,4 +106,5 @@ ThemeData primTheme() => ThemeData(
           color: darkGreen,
         ),
       ),
+      indicatorColor: darkGreen
     );

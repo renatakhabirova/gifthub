@@ -246,28 +246,54 @@ class _CartPageState extends State<CartPage> {
       body: isLoading
           ? Center(child: CircularProgressIndicator())
           : [...availableItems, ...unavailableItems].isEmpty
-          ? Center(child: Text('Корзина пуста'))
-          : Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount:
-              availableItems.length + unavailableItems.length,
-              itemBuilder: (context, index) {
-                if (index < availableItems.length) {
-                  return buildCartItem(
-                      availableItems[index], true);
-                } else {
-                  return buildCartItem(
-                      unavailableItems[
-                      index - availableItems.length],
-                      false);
-                }
-              },
+          ? RefreshIndicator(
+        onRefresh: fetchCartItems,
+        child: ListView(
+          children: [
+            Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              child: Center(
+                child: Text(
+                  'Корзина пуста',
+                  style: TextStyle(
+                    color: darkGreen,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
             ),
-          ),
-          buildCheckoutButton(context),
-        ],
+          ],
+        ),
+      )
+          : RefreshIndicator(
+        onRefresh: fetchCartItems,
+        color: darkGreen,
+        backgroundColor: backgroundBeige,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    itemCount: availableItems.length + unavailableItems.length,
+                    itemBuilder: (context, index) {
+                      if (index < availableItems.length) {
+                        return buildCartItem(availableItems[index], true);
+                      } else {
+                        return buildCartItem(
+                          unavailableItems[index - availableItems.length],
+                          false,
+                        );
+                      }
+                    },
+                  ),
+                ),
+                buildCheckoutButton(context),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
