@@ -187,7 +187,7 @@ class RegistrationFormState extends State<RegistrationForm> {
                 style: TextStyle(
                   color: darkGreen,
                   fontFamily: 'segoeui',
-                  fontSize: 20,
+                  fontSize: 18,
                 ),
               ),
               SizedBox(height: 12),

@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:gifthub/themes/colors.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
+import '../services/payment_web_veiw.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final double totalCost;
@@ -17,13 +22,14 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final SupabaseClient supabase = Supabase.instance.client;
-
+  DateTime? _selectedDeliveryDate;
   String? selectedRecipientName;
   String? selectedRecipientId;
 
   List<Map<String, dynamic>> searchResults = [];
   bool isLoading = false;
   bool isOrderLoading = false;
+
   Future<void> searchUsers(String query) async {
     if (query.isEmpty) {
       setState(() => searchResults = []);
@@ -36,7 +42,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (currentUserId == null) return;
 
       final response = await supabase
-          .from('ClientPublicView')
+          .from('clientpublicview')
           .select('ClientID, ClientName, ClientSurName, ClientDisplayname')
           .ilike('ClientDisplayname', '%$query%')
           .neq('ClientID', currentUserId)
@@ -61,18 +67,193 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           '${recipient['ClientName']} ${recipient['ClientSurName']}';
     });
   }
+
+  Future<Map<String, dynamic>?> fetchRecipientAddress(String recipientId) async {
+    try {
+      final response = await supabase
+          .from('clientpublicview')
+          .select('ClientStreet, ClientHouse, ClientApartment, ClientCity')
+          .eq('ClientID', recipientId)
+          .maybeSingle();
+
+      print('Response from supabase: $response');
+
+      if (response == null) {
+        return null;
+      }
+
+      final street = response['ClientStreet']?.toString().trim();
+      final house = response['ClientHouse']?.toString().trim();
+      final apartment = response['ClientApartment'];
+      final city = response['ClientCity'];
+
+      print('Fetched address data: Street=$street, House=$house, Apartment=$apartment, City=$city');
+
+      if ((street?.isNotEmpty ?? false) &&
+          (house?.isNotEmpty ?? false)) {
+        return response;
+      }
+
+      return null;
+    } catch (error) {
+      print('Error fetching address: $error');
+      return null;
+    }
+  }
+
+  Future<void> sendAddressRequestNotification(String recipientId) async {
+    try {
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId == null) return;
+
+      final senderInfo = await supabase
+          .from('clientpublicview')
+          .select('ClientDisplayname, ClientName, ClientSurName')
+          .eq('ClientID', currentUserId)
+          .single();
+
+      final senderName = senderInfo['ClientDisplayname'] ??
+          '${senderInfo['ClientName']} ${senderInfo['ClientSurName']}';
+
+      await supabase.from('Notification').insert({
+        'RecipientID': recipientId,
+        'SenderID': currentUserId,
+        'Message': 'Пользователь $senderName хочет отправить вам подарок! Пожалуйста, укажите адрес доставки в настройках профиля.',
+        'Type': 'address_request',
+        'CreatedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка при отправке уведомления: $error'),
+        ),
+      );
+    }
+  }
+
+
+
+  Future<void> createOrder() async {
+    try {
+      setState(() => isOrderLoading = true);
+
+      // Проверка выбранного получателя
+      if (selectedRecipientId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Выберите получателя')),
+        );
+        setState(() => isOrderLoading = false);
+        return;
+      }
+
+      // Получение ID текущего пользователя
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId == null) {
+        setState(() => isOrderLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: пользователь не авторизован')),
+        );
+        return;
+      }
+
+      // Проверка адреса получателя
+      final recipientAddress = await fetchRecipientAddress(selectedRecipientId!);
+      if (recipientAddress == null) {
+        // Если адреса нет, отправляем уведомление
+        await sendAddressRequestNotification(selectedRecipientId!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Адрес получателя не указан. Уведомление отправлено.'),
+          ),
+        );
+        setState(() => isOrderLoading = false);
+        return;
+      }
+
+      // Создание заказа
+      final orderResponse = await supabase
+          .from('Order')
+          .insert({
+        'OrderStatus': 1,
+        'OrderPlanDeliveryDate': _selectedDeliveryDate?.toIso8601String(),
+        'OrderRecipient': selectedRecipientId,
+        'OrderSender': currentUserId,
+        'OrderSum': widget.totalCost,
+        'OrderCity': recipientAddress['ClientCity'],
+        'OrderStreet': recipientAddress['ClientStreet'],
+        'OrderHouse': recipientAddress['ClientHouse'],
+        'OrderApartment': recipientAddress['ClientApartment'],
+      })
+          .select()
+          .single();
+
+      final orderId = orderResponse['OrderID'].toString();
+
+      // Добавление товаров в заказ
+      for (var item in widget.cartItems) {
+        await supabase.from('OrderProduct').insert({
+          'OrderProduct': item['Product']['ProductID'],
+          'OrderID': orderId,
+          'OrderProductQuantity': item['Quantity'],
+          'OrderProductParametr': item['Parametr']?['ParametrID'],
+        });
+      }
+
+      // Очистка корзины
+      await supabase.from('Cart').delete().eq('ClientID', currentUserId);
+
+      // Создание платежа
+      final paymentUrl = await createYooKassaPayment(widget.totalCost, orderId);
+      setState(() => isOrderLoading = false);
+
+      if (paymentUrl != null) {
+        if (await canLaunch(paymentUrl)) {
+          await launch(paymentUrl, forceSafariVC: true, forceWebView: true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Не удалось открыть страницу оплаты'),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при создании платежа в Юкассе'),
+          ),
+        );
+      }
+    } catch (error) {
+      setState(() => isOrderLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка при создании заказа: $error'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Оформление заказа')),
+      appBar: AppBar(
+        title: Text('Оформление заказа'),
+        backgroundColor: backgroundBeige,
+        foregroundColor: darkGreen,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            SizedBox(height: 10),
-            Text('Товары:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Товары:',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: darkGreen,
+              ),
+            ),
             SizedBox(height: 10),
             Container(
               height: 100,
@@ -91,13 +272,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            imageUrl,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              imageUrl,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    color: Colors.grey[200],
+                                    child: Icon(Icons.image_not_supported),
+                                  ),
+                            ),
                           ),
                         ),
                         Positioned(
@@ -111,9 +311,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                             child: Text(
                               '${item['Quantity']}x',
-                              style: TextStyle(color: Colors.white, fontSize: 12),
+                              style:
+                              TextStyle(color: Colors.white, fontSize: 12),
                             ),
-
                           ),
                         ),
                       ],
@@ -122,10 +322,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 },
               ),
             ),
-
             Divider(height: 30),
-
-            Text('Поиск получателя:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'Поиск получателя:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: darkGreen,
+              ),
+            ),
             SizedBox(height: 10),
             TextField(
               onChanged: (query) => searchUsers(query),
@@ -136,7 +341,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             SizedBox(height: 10),
             if (isLoading)
-              Center(child: CircularProgressIndicator())
+              Center(child: CircularProgressIndicator(color: darkGreen))
             else if (searchResults.isNotEmpty)
               Expanded(
                 child: ListView.builder(
@@ -144,50 +349,140 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   itemCount: searchResults.length,
                   itemBuilder: (context, index) {
                     final recipient = searchResults[index];
-                    final displayName = recipient['ClientDisplayname'] ?? 'Без имени';
-                    final fullName = '${recipient['ClientName']} ${recipient['ClientSurName']}';
+                    final displayName =
+                        recipient['ClientDisplayname'] ?? 'Без имени';
+                    final fullName =
+                        '${recipient['ClientName']} ${recipient['ClientSurName']}';
 
-                    return ListTile(
-                      title: Text(displayName),
-                      subtitle: Text(fullName),
-                      onTap: () => selectRecipient(recipient),
-                      tileColor: selectedRecipientId == recipient['ClientID']
-                          ? Colors.green.withOpacity(0.1)
-                          : null,
+                    return Card(
+                      elevation: 2,
+                      margin: EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        title: Text(
+                          displayName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: darkGreen,
+                          ),
+                        ),
+                        subtitle: Text(fullName),
+                        onTap: () => selectRecipient(recipient),
+                        tileColor: selectedRecipientId == recipient['ClientID']
+                            ? Colors.green.withOpacity(0.1)
+                            : null,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
-
             if (selectedRecipientName != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Text(
                   'Выбранный получатель: $selectedRecipientName',
-
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: darkGreen,
+                  ),
                 ),
               ),
-
             Spacer(),
-
-
-            ElevatedButton(
-              onPressed: () {
-                if (selectedRecipientId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Выберите получателя')),
-                  );
-                  return;
-                }
-              },
-              child: Text(
-                'Оплатить ${widget.totalCost.toStringAsFixed(2)} ₽',
-                style: TextStyle(fontSize: 16),
+            Text(
+              'Выберите дату и время доставки:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: darkGreen,
               ),
             ),
+            SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final selectedDate = await showDatePicker(
+                        context: context,
 
+                        initialDate: DateTime.now().add(Duration(days: 1)),
+                        firstDate: DateTime.now().add(Duration(days: 1)),
+                        lastDate: DateTime.now().add(Duration(days: 30)),
+                      );
+                      if (selectedDate != null) {
+                        final selectedTime = await showTimePicker(
+                          context: context,
+
+                          initialTime: TimeOfDay.now(),
+                          builder: (BuildContext context, Widget? child) {
+                            return MediaQuery(
+                                data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+                                child: child ?? Container()
+                            );
+                          },
+                        );
+                        if (selectedTime != null) {
+                          setState(() {
+                            _selectedDeliveryDate = DateTime(
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              selectedTime.hour,
+                              selectedTime.minute,
+                            ).toUtc();
+                          });
+                        }
+                      }
+                    },
+                    child: Text(
+                      _selectedDeliveryDate == null
+                          ? 'Выбрать дату и время'
+                          : 'Выбрано: ${_selectedDeliveryDate!.toLocal()}',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isOrderLoading
+                    ? null
+                    : () {
+                  if (selectedRecipientId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Выберите получателя')),
+                    );
+                    return;
+                  }
+                  createOrder();
+                },
+                child: isOrderLoading
+                    ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : Text(
+                  'Оплатить ${widget.totalCost.toStringAsFixed(2)} ₽',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
-  }}
+  }
+}

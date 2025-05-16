@@ -1,11 +1,11 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:gifthub/pages/video_widget.dart';
+import 'package:gifthub/services/video_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:gifthub/pages/wishlist_service.dart';
+import 'package:gifthub/services/wishlist_service.dart';
 import 'package:gifthub/themes/colors.dart';
-import 'package:gifthub/pages/add_to_cart.dart';
+import 'package:gifthub/services/add_to_cart.dart';
 import 'package:gifthub/pages/quantity_product.dart';
 
 class ProductDetailScreen extends StatelessWidget {

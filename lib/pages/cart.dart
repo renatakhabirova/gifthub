@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/themes/colors.dart';
 import 'package:gifthub/pages/product_card.dart';
 import 'package:gifthub/pages/checkout.dart';
-import 'package:gifthub/pages/video_widget.dart';
+import 'package:gifthub/services/video_widget.dart';
 import 'package:gifthub/pages/quantity_product.dart';
 
 import 'messages.dart';

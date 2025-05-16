@@ -20,7 +20,7 @@ import 'package:gifthub/themes/colors.dart';
 import 'package:gifthub/pages/mainpages.dart';
 import "package:url_strategy/url_strategy.dart";
 
-import 'env_config.dart' show supabaseKey, supabaseUrl;
+import 'env_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,12 +85,12 @@ class GiftHub extends StatelessWidget {
       },
       routes: {
         '/': (context) => kIsWeb ? NavigationExample() : SplashScreen(),
-         '/main': (context) => NavigationExample(),
+        '/main': (context) => NavigationExample(),
         '/authorization': (context) => Authorization(),
         '/registration': (context) => RegistrationForm(),
         '/profile': (context) => ProfilePage(),
         '/orders': (context) => OrderPage(),
-        '/notifications': (context) => NotifPage(),
+        '/notifications': (context) => NotificationsPage(),
         '/product/:id': (context) {
           final arguments = ModalRoute.of(context)?.settings.arguments;
           if (arguments is Map<String, dynamic>) {

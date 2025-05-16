@@ -17,7 +17,9 @@ class _ProfilePageState extends State<ProfilePage> {
   final _phoneController = TextEditingController();
   final _cityController = TextEditingController();
   final _birthdayController = TextEditingController();
-  final _addressController = TextEditingController();
+  final _streetController = TextEditingController();
+  final _houseController = TextEditingController();
+  final _apartmentController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _emailController = TextEditingController();
   String? _passwordError;
@@ -51,7 +53,9 @@ class _ProfilePageState extends State<ProfilePage> {
       _phoneController.text = response['ClientPhone'] ?? '';
       _selectedCity = response['ClientCity'];
       _birthdayController.text = response['ClientBirthday'] ?? '';
-      _addressController.text = response['ClientAdress'] ?? '';
+      _streetController.text = response['ClientStreet'] ?? '';
+      _houseController.text = response['ClientHouse'] ?? '';
+      _apartmentController.text = response['ClientApartment']?.toString() ?? '';
       _displayNameController.text = response['ClientDisplayname'] ?? '';
     });
   }
@@ -75,7 +79,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-
   Future<void> _updateUserData() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -83,14 +86,15 @@ class _ProfilePageState extends State<ProfilePage> {
     if (userId == null) return;
 
     try {
-
       await Supabase.instance.client.from('Client').update({
         'ClientName': _nameController.text,
         'ClientSurName': _surnameController.text,
         'ClientPhone': _phoneController.text,
         'ClientCity': _selectedCity,
         'ClientBirthday': _birthdayController.text.isNotEmpty ? _birthdayController.text : null,
-        'ClientAdress': _addressController.text,
+        'ClientStreet': _streetController.text,
+        'ClientHouse': _houseController.text,
+        'ClientApartment': _apartmentController.text.isNotEmpty ? _apartmentController.text : null,
       }).eq('ClientID', userId);
 
       //  изменился ли email
@@ -98,11 +102,9 @@ class _ProfilePageState extends State<ProfilePage> {
       final newEmail = _emailController.text.trim();
 
       if (newEmail.isNotEmpty && newEmail != currentEmail) {
-
         await Supabase.instance.client.auth.updateUser(
           UserAttributes(email: newEmail),
         );
-
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${MessagesRu.updateEmail} $_userEmail')),
@@ -113,7 +115,6 @@ class _ProfilePageState extends State<ProfilePage> {
         SnackBar(content: Text('Данные успешно обновлены')),
       );
     } catch (e) {
-
       String errorMessage = MessagesRu.registrationError;
       if (e.toString().contains('User already registered')) {
         errorMessage = MessagesRu.emailExists;
@@ -126,6 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     }
   }
+
   Future<void> _selectDate(BuildContext context) async {
     DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -221,7 +223,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontFamily: 'segoeui',
                   fontSize: 16,
                 ),
-
               ),
               SizedBox(height: 12),
 
@@ -253,15 +254,30 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               SizedBox(height: 12),
 
+              _buildSectionHeader('Адрес доставки'),
               TextFormField(
-                controller: _addressController,
-                decoration: InputDecoration(labelText: 'Адрес'),
+                controller: _streetController,
+                decoration: InputDecoration(labelText: 'Улица'),
+              ),
+              SizedBox(height: 12),
+              TextFormField(
+                controller: _houseController,
+                decoration: InputDecoration(labelText: 'Дом'),
+              ),
+              SizedBox(height: 12),
+              TextFormField(
+
+                controller: _apartmentController,
+                decoration: InputDecoration(labelText: 'Квартира'),
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly, // Только цифры!
+                ],
               ),
               SizedBox(height: 20),
 
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 ),
                 onPressed: _updateUserData,
@@ -328,7 +344,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   showDialog(
                     context: context,
-                    builder: (BuildContext context) => StatefulBuilder( // Используем StatefulBuilder для обновления состояния диалога
+                    builder: (BuildContext context) => StatefulBuilder(
                       builder: (context, setState) => AlertDialog(
                         title: const Text('Подтвердите удаление аккаунта'),
                         content: Column(
@@ -341,11 +357,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               decoration: InputDecoration(
                                 labelText: 'Пароль',
                                 errorText: _passwordError,
-
-
                               ),
                               onChanged: (value) {
-
                                 if (_passwordError != null) {
                                   setState(() {
                                     _passwordError = null;
@@ -420,7 +433,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ],
                       ),
                     ),
-
                   );
                 },
                 icon: Icon(Icons.delete_forever),

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 
-ThemeData primTheme() => ThemeData(
+ThemeData primTheme() =>
+    ThemeData(
       scaffoldBackgroundColor: backgroundBeige,
+      colorScheme: const ColorScheme.light(primary: Color.fromARGB(255, 62, 81, 56)),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           shape: RoundedRectangleBorder(
@@ -93,7 +95,7 @@ ThemeData primTheme() => ThemeData(
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: darkGreen),
-      dialogTheme: DialogThemeData(
+      dialogTheme: DialogTheme(
         backgroundColor: backgroundBeige,
         titleTextStyle: TextStyle(
           fontFamily: 'segoeui',
@@ -105,6 +107,103 @@ ThemeData primTheme() => ThemeData(
           fontSize: 18,
           color: darkGreen,
         ),
+
       ),
-      indicatorColor: darkGreen
+      indicatorColor: darkGreen,
+
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: backgroundBeige,
+        hourMinuteTextColor: darkGreen,
+
+        dialHandColor: darkGreen,
+
+        dialBackgroundColor:backgroundBeige,
+        hourMinuteColor: lightGrey.withOpacity(0.2),
+        entryModeIconColor: darkGreen,
+        cancelButtonStyle: ButtonStyle(
+          foregroundColor: MaterialStateProperty.all(wishListIcon)
+        ),
+
+        confirmButtonStyle: ButtonStyle(
+            foregroundColor: MaterialStateProperty.all(darkGreen)
+        ),
+
+
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        helpTextStyle: TextStyle(
+          fontFamily: 'segoeui',
+          fontSize: 16,
+          color: darkGreen,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          fillColor: lightGrey,
+          filled: true,
+
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10.0),
+            borderSide: BorderSide(width: 1.5, color: darkGreen),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10.0),
+            borderSide: BorderSide(width: 0, style: BorderStyle.none),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10.0),
+            borderSide: BorderSide(width: 0, style: BorderStyle.none),
+          ),
+          labelStyle: TextStyle(
+            color: darkGreen,
+            fontFamily: 'segoeui',
+            fontSize: 20,
+          ),
+
+        ),
+
+      ),
+
+
+
+      datePickerTheme: DatePickerThemeData(
+
+        cancelButtonStyle: ButtonStyle(
+            foregroundColor: MaterialStateProperty.all(wishListIcon)
+        ),
+        confirmButtonStyle: ButtonStyle(
+            foregroundColor: MaterialStateProperty.all(darkGreen)
+        ),
+        backgroundColor: backgroundBeige,
+        headerBackgroundColor: darkGreen,
+        headerForegroundColor: Colors.white,
+        weekdayStyle: TextStyle(
+          fontFamily: 'segoeui',
+          fontSize: 16,
+          color: darkGreen,
+        ),
+        dayStyle: TextStyle(
+          fontFamily: 'segoeui',
+          fontSize: 16,
+          color: darkGreen,
+
+        ),
+
+
+        dayOverlayColor: MaterialStateProperty.all(buttonGreenOpacity),
+
+
+        yearBackgroundColor: MaterialStateProperty.all(lightGrey),
+        yearForegroundColor: MaterialStateProperty.all(Colors.white),
+        rangeSelectionBackgroundColor: buttonGreen.withOpacity(0.3),
+        rangeSelectionOverlayColor: MaterialStateProperty.all(buttonGreen.withOpacity(0.2)),
+        rangePickerBackgroundColor: darkGreen,
+        yearStyle: TextStyle(
+          fontFamily: 'segoeui',
+          fontSize: 18,
+          color: darkGreen,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
     );

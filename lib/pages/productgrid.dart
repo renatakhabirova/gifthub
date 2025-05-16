@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:gifthub/pages/video_widget.dart';
+import 'package:gifthub/services/video_widget.dart';
 import 'package:gifthub/themes/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/pages/product_card.dart';
-import 'package:gifthub/pages/wishlist_service.dart';
+import 'package:gifthub/services/wishlist_service.dart';
+
+import '../services/wishlist_service.dart';
 
 class ResponsiveGrid extends StatefulWidget {
   final String searchQuery;

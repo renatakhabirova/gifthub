@@ -114,8 +114,10 @@ class AuthorizationFormState extends State<AuthorizationForm> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(MessagesRu.loginSuccess)),
                         );
-                        Navigator.pushReplacement(context,
-                            MaterialPageRoute(builder: (context) => NavigationExample()));
+                        Navigator.pushNamed(
+                          context,
+                          '/main',
+                        );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(MessagesRu.invalidCredentials)),
