@@ -134,7 +134,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
 
-  Future<void> createOrder() async {
+  Future<String?> createTemporaryOrder() async {
     try {
       setState(() => isOrderLoading = true);
 
@@ -144,7 +144,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           SnackBar(content: Text('Выберите получателя')),
         );
         setState(() => isOrderLoading = false);
-        return;
+        return null;
       }
 
       // Получение ID текущего пользователя
@@ -154,7 +154,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ошибка: пользователь не авторизован')),
         );
-        return;
+        return null;
       }
 
       // Проверка выбранной даты доставки
@@ -163,13 +163,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           SnackBar(content: Text('Выберите дату доставки')),
         );
         setState(() => isOrderLoading = false);
-        return;
+        return null;
       }
 
       // Проверка адреса получателя
       final recipientAddress = await fetchRecipientAddress(selectedRecipientId!);
       if (recipientAddress == null) {
-        // Если адреса нет, отправляем уведомление
         await sendAddressRequestNotification(selectedRecipientId!);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -177,14 +176,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         );
         setState(() => isOrderLoading = false);
-        return;
+        return null;
       }
 
-      // Создание заказа
+      // Создание временного заказа со статусом 1 (ожидает оплаты)
       final orderResponse = await supabase
           .from('Order')
           .insert({
-        'OrderStatus': 1,
+        'OrderStatus': 1, // статус "ожидает оплаты"
         'OrderPlanDeliveryDate': _selectedDeliveryDate?.toIso8601String(),
         'OrderRecipient': selectedRecipientId,
         'OrderSender': currentUserId,
@@ -209,21 +208,84 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         });
       }
 
-      // Очистка корзины
-      await supabase.from('Cart').delete().eq('ClientID', currentUserId);
+      return orderId;
+    } catch (error) {
+      setState(() => isOrderLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка при создании заказа: $error'),
+        ),
+      );
+      return null;
+    }
+  }
 
+
+  Future<void> handleSuccessfulPayment(String orderId) async {
+    try {
+      // Обновляем статус заказа на 3 (оплачен)
+      await supabase
+          .from('Order')
+          .update({'OrderStatus': 3})
+          .eq('OrderID', orderId);
+
+      // Очистка корзины
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId != null) {
+        await supabase.from('Cart').delete().eq('ClientID', currentUserId);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Заказ успешно оплачен!'),
+
+        ),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка при обновлении статуса заказа: $error'),
+          backgroundColor: wishListIcon,
+        ),
+      );
+    }
+  }
+
+
+  Future<void> processPayment() async {
+    final orderId = await createTemporaryOrder();
+    if (orderId == null) return;
+
+    try {
       // Создание платежа
       final paymentUrl = await createYooKassaPayment(widget.totalCost, orderId);
       setState(() => isOrderLoading = false);
 
       if (paymentUrl != null) {
-        // Переход на экран с WebView
-        Navigator.push(
+        // Переход на экран оплаты с передачей orderId
+        final result = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (context) => PaymentWebViewScreen(paymentUrl: paymentUrl),
+            builder: (context) => PaymentWebViewScreen(
+              paymentUrl: paymentUrl,
+              orderId: orderId,
+            ),
           ),
         );
+
+        // Проверяем результат оплаты
+        if (result == true) {
+          // Успешная оплата, возвращаемся на главный экран
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        } else {
+          // Оплата не удалась или была отменена
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Оплата не была завершена'),
+
+            ),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -235,7 +297,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() => isOrderLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ошибка при создании заказа: $error'),
+          content: Text('Ошибка при обработке платежа: $error'),
         ),
       );
     }
@@ -468,7 +530,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     );
                     return;
                   }
-                  createOrder();
+                  processPayment();
                 },
                 child: isOrderLoading
                     ? SizedBox(
