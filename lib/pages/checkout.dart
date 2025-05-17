@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:gifthub/pages/payment_webview.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/themes/colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
-import '../services/payment_web_veiw.dart';
+import '../services/payment_service.dart';
+
 
 class CheckoutScreen extends StatefulWidget {
   final double totalCost;
@@ -132,7 +134,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
 
-
   Future<void> createOrder() async {
     try {
       setState(() => isOrderLoading = true);
@@ -155,6 +156,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
         return;
       }
+
       // Проверка выбранной даты доставки
       if (_selectedDeliveryDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -163,6 +165,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() => isOrderLoading = false);
         return;
       }
+
       // Проверка адреса получателя
       final recipientAddress = await fetchRecipientAddress(selectedRecipientId!);
       if (recipientAddress == null) {
@@ -214,15 +217,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() => isOrderLoading = false);
 
       if (paymentUrl != null) {
-        if (await canLaunch(paymentUrl)) {
-          await launch(paymentUrl, forceSafariVC: true, forceWebView: true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Не удалось открыть страницу оплаты'),
-            ),
-          );
-        }
+        // Переход на экран с WebView
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentWebViewScreen(paymentUrl: paymentUrl),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
