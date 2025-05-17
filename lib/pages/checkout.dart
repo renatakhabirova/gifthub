@@ -155,7 +155,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
         return;
       }
-
+      // Проверка выбранной даты доставки
+      if (_selectedDeliveryDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Выберите дату доставки')),
+        );
+        setState(() => isOrderLoading = false);
+        return;
+      }
       // Проверка адреса получателя
       final recipientAddress = await fetchRecipientAddress(selectedRecipientId!);
       if (recipientAddress == null) {
