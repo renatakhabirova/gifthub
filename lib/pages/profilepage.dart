@@ -254,28 +254,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               SizedBox(height: 12),
 
-              _buildSectionHeader('Адрес доставки'),
-              TextFormField(
-                controller: _streetController,
-                decoration: InputDecoration(labelText: 'Улица'),
-              ),
-              SizedBox(height: 12),
-              TextFormField(
-                controller: _houseController,
-                decoration: InputDecoration(labelText: 'Дом'),
-              ),
-              SizedBox(height: 12),
-              TextFormField(
-
-                controller: _apartmentController,
-                decoration: InputDecoration(labelText: 'Квартира'),
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly, // Только цифры!
-                ],
-              ),
-              SizedBox(height: 20),
-
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

@@ -151,7 +151,7 @@ class _CartPageState extends State<CartPage> {
           Text(
             'Итого: ${totalCost.toStringAsFixed(2)} ₽',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: darkGreen,
             ),

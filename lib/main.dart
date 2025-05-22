@@ -91,6 +91,7 @@ class GiftHub extends StatelessWidget {
         '/profile': (context) => ProfilePage(),
         '/orders': (context) => OrderPage(),
         '/notifications': (context) => NotificationsPage(),
+
         '/product/:id': (context) {
           final arguments = ModalRoute.of(context)?.settings.arguments;
           if (arguments is Map<String, dynamic>) {
