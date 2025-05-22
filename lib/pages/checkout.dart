@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:gifthub/pages/payment_webview.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -223,11 +225,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> handleSuccessfulPayment(String orderId) async {
     try {
-      // Обновляем статус заказа на 3 (оплачен)
-      await supabase
-          .from('Order')
-          .update({'OrderStatus': 3})
-          .eq('OrderID', orderId);
+      // Обновляем статус заказа через RPC
+      final response = await supabase
+          .rpc('update_order_status',
+          params: {
+            'p_order_id': int.parse(orderId),
+            'p_status': 3
+          }
+      );
+
+      if (response == null) {
+        throw Exception('Не удалось обновить статус заказа');
+      }
 
       // Очистка корзины
       final currentUserId = supabase.auth.currentUser?.id;
@@ -238,10 +247,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Заказ успешно оплачен!'),
-
         ),
       );
     } catch (error) {
+      print('Error updating order status: $error'); // Добавляем логирование
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Ошибка при обновлении статуса заказа: $error'),
@@ -253,6 +262,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
 
   Future<void> processPayment() async {
+
+    if (kIsWeb || (Platform.isWindows)) {
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Оплата недоступна'),
+          content: Text('Оплата доступна только на мобильных устройствах Android.'),
+          actions: [
+            TextButton(
+              onPressed: Navigator.of(context).pop,
+              child: Text('OK'),
+            )
+          ],
+        ),
+      );
+      return;
+    }
+
     final orderId = await createTemporaryOrder();
     if (orderId == null) return;
 
@@ -282,7 +310,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Оплата не была завершена'),
-
             ),
           );
         }
