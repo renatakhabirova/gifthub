@@ -76,17 +76,8 @@ class _AccountPageState extends State<AccountPage> {
                 );
               },
             ),
+
             ListTile(
-              leading: Icon(Icons.star_border_outlined),
-              title: Text('Купленные товары'),
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  '/raiting',
-                );
-              },
-            ),
-            /*ListTile(
               leading: Stack(
                 children: [
                   Icon(
@@ -119,7 +110,7 @@ class _AccountPageState extends State<AccountPage> {
                 );
                 checkUnreadNotifications();
               },
-            )*/
+            )
 
           ],
         ),

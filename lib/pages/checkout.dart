@@ -132,7 +132,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> handleSuccessfulPayment(String orderId) async {
     try {
-      // Обновляем статус заказа на 3 (оплачен)
+      // Обновляем статус заказа на "оплачен" (предположим, что ID статуса = 3)
       final result = await client
           .from('Order')
           .update({'OrderStatus': 3})
@@ -142,10 +142,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       print('Результат обновления: $result');
 
-      // Очистка корзины
+      // Получаем ID текущего пользователя
       final currentUserId = client.auth.currentUser?.id;
       if (currentUserId != null) {
+        // Очищаем корзину
         await client.from('Cart').delete().eq('ClientID', currentUserId);
+
+
+        await client.from('Notification').insert({
+          'RecipientID': currentUserId,
+          'SenderID': currentUserId,
+          'Message': 'Ваш заказ №$orderId успешно оплачен!',
+          'Type': 'order_paid',
+        });
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
