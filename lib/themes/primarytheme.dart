@@ -95,7 +95,7 @@ ThemeData primTheme() =>
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: darkGreen),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: backgroundBeige,
         titleTextStyle: TextStyle(
           fontFamily: 'segoeui',
