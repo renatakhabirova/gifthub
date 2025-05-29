@@ -57,7 +57,7 @@ ThemeData primTheme() =>
           borderRadius: BorderRadius.circular(10.0),
           borderSide: BorderSide(width: 1.5, color: Colors.redAccent),
         ),
-        errorMaxLines: 2,
+        errorMaxLines: 4,
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
           borderSide: BorderSide(width: 1.5, color: Colors.redAccent),

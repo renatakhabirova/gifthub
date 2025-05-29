@@ -23,6 +23,13 @@ class _CartPageState extends State<CartPage> {
   List<Map<String, dynamic>> unavailableItems = [];
   bool isLoading = true;
 
+  // Промокод
+  final TextEditingController _promoController = TextEditingController();
+  String? _promoError;
+  bool _promoApplied = false;
+  int _discount = 0;
+  String? _appliedPromoCode;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +40,7 @@ class _CartPageState extends State<CartPage> {
   @override
   void dispose() {
     supabase.channel('cart-updates').unsubscribe();
+    _promoController.dispose();
     super.dispose();
   }
 
@@ -137,7 +145,141 @@ class _CartPageState extends State<CartPage> {
       final cost = product['ProductCost'] ?? 0.0;
       total += cost * quantity;
     }
+    if (_promoApplied && _discount > 0) {
+      total = total * (1 - _discount / 100);
+    }
     return total;
+  }
+
+  Widget buildPromoCodeField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _promoController,
+                  decoration: InputDecoration(
+                    labelText: 'Промокод',
+                    errorText: _promoError,
+                    border: OutlineInputBorder(),
+                  ),
+                  enabled: !_promoApplied,
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _promoApplied ? null : _applyPromo,
+                child: const Text('Применить'),
+              ),
+            ],
+          ),
+          if (_promoApplied)
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Промокод "$_appliedPromoCode" применён! Скидка $_discount%',
+                      style: TextStyle(color: buttonGreen),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _promoApplied = false;
+                        _discount = 0;
+                        _appliedPromoCode = null;
+                        _promoController.clear();
+                        _promoError = null;
+                      });
+                    },
+                      child: Text('Удалить', style: TextStyle(color: wishListIcon),),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _applyPromo() async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _promoError = 'Введите промокод';
+      });
+      return;
+    }
+
+    try {
+      // 1. Найти промокод в PromoCode
+      final promo = await supabase
+          .from('PromoCode')
+          .select('PromoCodeID, Discount, ValidUntil')
+          .eq('Code', code)
+          .maybeSingle();
+
+      if (promo == null) {
+        setState(() {
+          _promoError = 'Промокод не найден';
+          _promoApplied = false;
+          _discount = 0;
+          _appliedPromoCode = null;
+        });
+        return;
+      }
+
+      final validUntil = promo['ValidUntil'];
+      if (validUntil != null && DateTime.now().isAfter(DateTime.parse(validUntil))) {
+        setState(() {
+          _promoError = 'Срок действия промокода истёк';
+          _promoApplied = false;
+          _discount = 0;
+          _appliedPromoCode = null;
+        });
+        return;
+      }
+
+      // 2. Проверить, использовал ли пользователь этот промокод
+      final userId = supabase.auth.currentUser?.id;
+      final promoCodeId = promo['PromoCodeID'] as int;
+      final clientPromo = await supabase
+          .from('ClientPromoCode')
+          .select('IsUsed')
+          .eq('ClientID', userId!)
+          .eq('PromoCodeID', promoCodeId)
+          .maybeSingle();
+
+      if (clientPromo != null && clientPromo['IsUsed'] == true) {
+        setState(() {
+          _promoError = 'Вы уже использовали этот промокод';
+          _promoApplied = false;
+          _discount = 0;
+          _appliedPromoCode = null;
+        });
+        return;
+      }
+
+      setState(() {
+        _promoApplied = true;
+        _discount = (promo['Discount'] as num?)?.toInt() ?? 0;
+        _promoError = null;
+        _appliedPromoCode = code;
+      });
+    } catch (e) {
+      setState(() {
+        _promoError = 'Ошибка проверки: $e';
+        _promoApplied = false;
+        _discount = 0;
+        _appliedPromoCode = null;
+      });
+    }
   }
 
   Widget buildCheckoutButton(BuildContext context) {
@@ -167,13 +309,13 @@ class _CartPageState extends State<CartPage> {
                     builder: (context) => CheckoutScreen(
                       totalCost: calculateTotalCost(),
                       cartItems: availableItems,
+                      promoCode: _appliedPromoCode,
                     ),
                   ),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text('Некоторые товары больше не доступны.'),
-
                 ));
               }
             },
@@ -192,15 +334,33 @@ class _CartPageState extends State<CartPage> {
           .eq('CartItemID', cartItemId);
     } catch (error) {
       String errorMessage = MessagesRu.error;
+      String productName = '';
+
+      // Получаем название товара для отображения в ошибке
+      try {
+        final cartItem = await supabase
+            .from('Cart')
+            .select('Product(ProductName)')
+            .eq('CartItemID', cartItemId)
+            .single();
+
+        if (cartItem != null && cartItem['Product'] != null) {
+          productName = cartItem['Product']['ProductName'] ?? '';
+        }
+      } catch (e) {
+
+      }
 
       if (error.toString().contains('количество')) {
-        errorMessage = MessagesRu.quantityProductIsNull;
+        errorMessage = productName.isNotEmpty
+            ? 'Товара "$productName" больше нет'
+            : MessagesRu.quantityProductIsNull;
       }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
     }
-
   }
 
   Future<void> removeCartItem(int cartItemId) async {
@@ -273,6 +433,7 @@ class _CartPageState extends State<CartPage> {
           children: [
             Column(
               children: [
+                buildPromoCodeField(),
                 Expanded(
                   child: ListView.builder(
                     physics: AlwaysScrollableScrollPhysics(),
@@ -330,8 +491,9 @@ class _CartPageState extends State<CartPage> {
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(8),
+              padding: EdgeInsets.all(5),
               width: 150,
+              height: 150,
               child: ClipRRect(
                 borderRadius: BorderRadius.all(Radius.circular(10)),
                 child: buildMediaWidget(imageUrl),

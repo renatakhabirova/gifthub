@@ -271,8 +271,10 @@ class RegistrationFormState extends State<RegistrationForm> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(MessagesRu.registration)),
         );
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (context) => NavigationExample()));
+        Navigator.pushNamed(
+          context,
+          '/main'
+        );
       }
     } catch (e) {
       print('Ошибка регистрации: $e');

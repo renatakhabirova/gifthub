@@ -1,6 +1,7 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:gifthub/pages/expandable_text.dart';
 import 'package:gifthub/services/video_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/services/wishlist_service.dart';
@@ -18,7 +19,6 @@ class ProductDetailScreen extends StatelessWidget {
     this.onBack,
   }) : super(key: key);
 
-
   Future<String> fetchProductDescription(int productId) async {
     try {
       final supabase = Supabase.instance.client;
@@ -33,7 +33,6 @@ class ProductDetailScreen extends StatelessWidget {
       return 'Описание отсутствует';
     }
   }
-
 
   Widget buildMediaWidget(BuildContext context, String url, List<String> mediaUrls, int initialIndex) {
     return GestureDetector(
@@ -61,14 +60,17 @@ class ProductDetailScreen extends StatelessWidget {
                         final mediaUrl = mediaUrls[index];
                         return isVideoUrl(mediaUrl)
                             ? ClipRRect(
-                          child: VideoPlayerScreen(videoUrl: mediaUrl, isFullscreen: true),
+                          child: VideoPlayerScreen(
+                              videoUrl: mediaUrl, isFullscreen: true),
                         )
                             : InteractiveViewer(
                           child: Image.network(
                             mediaUrl,
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Icon(Icons.image_not_supported, color: darkGreen),
+                            errorBuilder:
+                                (context, error, stackTrace) =>
+                                Icon(Icons.image_not_supported,
+                                    color: darkGreen),
                           ),
                         );
                       },
@@ -103,13 +105,11 @@ class ProductDetailScreen extends StatelessWidget {
     );
   }
 
-  //  является ли URL видео
   bool isVideoUrl(String url) {
     final extensions = ['.mp4', '.mov', '.avi', '.wmv'];
     return extensions.any((ext) => url.toLowerCase().endsWith(ext));
   }
 
-  // получение параметров товара
   Future<List<Map<String, dynamic>>> fetchProductParameters(int productId) async {
     try {
       final supabase = Supabase.instance.client;
@@ -123,6 +123,7 @@ class ProductDetailScreen extends StatelessWidget {
       return [];
     }
   }
+
   Future<bool> hasParameters(int productId) async {
     try {
       final supabase = Supabase.instance.client;
@@ -130,35 +131,31 @@ class ProductDetailScreen extends StatelessWidget {
           .from('ParametrProduct')
           .select('Parametr(ParametrName)')
           .eq('ProductID', productId);
-      return response.isNotEmpty; //  true, если параметры есть
+      return response.isNotEmpty;
     } catch (e) {
       print('Ошибка при проверке наличия параметров: $e');
       return false;
     }
   }
 
-
   Future<String> formatProductDescription(int productId) async {
-    if (product['ProductDescription'] != null && product['ProductDescription'].isNotEmpty) {
+    if (product['ProductDescription'] != null &&
+        product['ProductDescription'].isNotEmpty) {
       return product['ProductDescription'] ?? 'Описание отсутствует';
     }
     return await fetchProductDescription(productId);
   }
 
-
   @override
   Widget build(BuildContext context) {
-
     final List<String> mediaUrls = product['ProductPhoto']?.isNotEmpty ?? false
         ? List<String>.from(product['ProductPhoto'].map((e) => e['Photo']))
-        : ['https://picsum.photos/200/300'];
-
+        : ['https://picsum.photos/200/300 '];
 
     final isInWishlist = ValueNotifier<bool>(false);
     checkInWishlist(product['ProductID']).then((value) {
       isInWishlist.value = value;
     });
-
 
     final selectedParameter = ValueNotifier<String?>(null);
 
@@ -169,7 +166,6 @@ class ProductDetailScreen extends StatelessWidget {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(product['ProductName']),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
@@ -210,61 +206,97 @@ class ProductDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   if (!isLargeScreen)
-                    CarouselSlider(
-                      options: CarouselOptions(
-                        height: 350,
-                        viewportFraction: 1,
-                        enableInfiniteScroll: false,
-                        autoPlay: false,
-                      ),
-                      items: mediaUrls.map((url) {
-                        return Builder(
-                          builder: (BuildContext context) {
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: buildMediaWidget(context, url, mediaUrls, mediaUrls.indexOf(url)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CarouselSlider(
+                          options: CarouselOptions(
+                            height: 350,
+                            viewportFraction: 1,
+                            enableInfiniteScroll: false,
+                            autoPlay: false,
+                          ),
+                          items: mediaUrls.map((url) {
+                            return Builder(
+                              builder: (BuildContext context) {
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: buildMediaWidget(
+                                      context, url, mediaUrls,
+                                      mediaUrls.indexOf(url)),
+                                );
+                              },
                             );
-                          },
-                        );
-                      }).toList(),
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          textAlign: TextAlign.left,
+                          product['ProductName'] ?? 'Название товара',
+                          style: TextStyle(
+
+                            fontSize: 22,
+                            fontWeight: FontWeight.normal,
+                            color: darkGreen,
+                          ),
+                        ),
+                      ],
                     ),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       if (isLargeScreen)
                         Expanded(
                           flex: 2,
-                          child: CarouselSlider(
-                            options: CarouselOptions(
-                              height: constraints.maxHeight * 0.8,
-                              viewportFraction: 1,
-                              enableInfiniteScroll: false,
-                              autoPlay: false,
-                            ),
-                            items: mediaUrls.map((url) {
-                              return Builder(
-                                builder: (BuildContext context) {
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: buildMediaWidget(context, url, mediaUrls, mediaUrls.indexOf(url)),
+                          child: Column(
+                            children: [
+                              CarouselSlider(
+                                options: CarouselOptions(
+                                  height: constraints.maxHeight * 0.8,
+                                  viewportFraction: 1,
+                                  enableInfiniteScroll: false,
+                                  autoPlay: false,
+                                ),
+                                items: mediaUrls.map((url) {
+                                  return Builder(
+                                    builder: (BuildContext context) {
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: buildMediaWidget(
+                                            context, url, mediaUrls,
+                                            mediaUrls.indexOf(url)),
+                                      );
+                                    },
                                   );
-                                },
-                              );
-                            }).toList(),
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                           ),
                         ),
-
                       Expanded(
                         flex: isLargeScreen ? 3 : 1,
                         child: Padding(
                           padding: const EdgeInsets.only(left: 5, top: 5),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+
                             children: [
-                              // Цена товара
+
+                              if (isLargeScreen)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                child: Text(
+                                  textAlign: TextAlign.left,
+                                  product['ProductName'] ?? 'Название товара',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.normal,
+                                    color: darkGreen,
+                                  ),
+                                )),
+
                               Text(
                                 '${product['ProductCost']} ₽',
                                 style: TextStyle(
@@ -273,51 +305,72 @@ class ProductDetailScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              // Параметры товара
                               FutureBuilder<List<Map<String, dynamic>>>(
-                                future: fetchProductParameters(product['ProductID']),
+                                future:
+                                fetchProductParameters(product['ProductID']),
                                 builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
                                     return const CircularProgressIndicator();
                                   }
-
                                   final parameters = snapshot.data!;
-                                  if (parameters.isEmpty) return const SizedBox.shrink();
-
+                                  if (parameters.isEmpty)
+                                    return const SizedBox.shrink();
                                   return ValueListenableBuilder<String?>(
                                     valueListenable: selectedParameter,
                                     builder: (context, selected, _) {
                                       return Wrap(
                                         spacing: 8,
                                         children: parameters.map((param) {
-                                          final name = param['Parametr']['ParametrName'];
+                                          final name =
+                                          param['Parametr']['ParametrName'];
                                           final isSelected = selected == name;
-
                                           return FutureBuilder<int?>(
-                                            future: fetchParametrId(name).then((id) => id != null ? fetchParametrQuantity(product['ProductID'], id) : null),
+                                            future: fetchParametrId(name)
+                                                .then((id) => id != null
+                                                ? fetchParametrQuantity(
+                                                product['ProductID'], id)
+                                                : null),
                                             builder: (context, quantitySnapshot) {
-                                              final quantity = quantitySnapshot.data ?? 0;
-
+                                              final quantity =
+                                                  quantitySnapshot.data ?? 0;
                                               bool isAvailable = quantity > 0;
-
                                               return ChoiceChip(
                                                 label: Text(name),
                                                 selected: isSelected,
                                                 showCheckmark: false,
-                                                onSelected: isAvailable ? (_) => selectedParameter.value = name : null,
-                                                selectedColor: isAvailable ? darkGreen : Colors.grey,
-                                                disabledColor: Colors.grey[300],
+                                                onSelected: isAvailable
+                                                    ? (_) =>
+                                                selectedParameter.value =
+                                                    name
+                                                    : null,
+                                                selectedColor: isAvailable
+                                                    ? darkGreen
+                                                    : Colors.grey,
+                                                disabledColor:
+                                                Colors.grey[300],
                                                 shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(5),
+                                                  borderRadius:
+                                                  BorderRadius.circular(5),
                                                   side: BorderSide(
-                                                    color: !isAvailable ? lightGrey : isSelected ? darkGreen : Colors.grey,
+                                                    color: !isAvailable
+                                                        ? lightGrey
+                                                        : isSelected
+                                                        ? darkGreen
+                                                        : Colors.grey,
                                                     width: 2,
-                                                    style: !isAvailable ? BorderStyle.solid : BorderStyle.none,
-                                                    strokeAlign: BorderSide.strokeAlignOutside,
+                                                    style: !isAvailable
+                                                        ? BorderStyle.solid
+                                                        : BorderStyle.none,
+                                                    strokeAlign:
+                                                    BorderSide.strokeAlignOutside,
                                                   ),
                                                 ),
                                                 labelStyle: TextStyle(
-                                                  color: isSelected && isAvailable ? Colors.white : darkGreen,
+                                                  color: isSelected &&
+                                                      isAvailable
+                                                      ? Colors.white
+                                                      : darkGreen,
                                                 ),
                                               );
                                             },
@@ -329,51 +382,57 @@ class ProductDetailScreen extends StatelessWidget {
                                 },
                               ),
                               const SizedBox(height: 20),
-
                               Row(
                                 children: [
                                   FutureBuilder<int?>(
                                     future: selectedParameter.value != null
-                                        ? fetchParametrId(selectedParameter.value!).then((id) =>
-                                        fetchParametrQuantity(product['ProductID'], id!))
-                                        : fetchAvailableQuantity(product['ProductID']),
+                                        ? fetchParametrId(selectedParameter
+                                        .value!)
+                                        .then((id) => fetchParametrQuantity(
+                                        product['ProductID'], id!))
+                                        : fetchAvailableQuantity(
+                                        product['ProductID']),
                                     builder: (context, snapshot) {
-                                      if (snapshot.connectionState == ConnectionState.waiting) {
-                                        return const Center(child: CircularProgressIndicator());
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                            child: CircularProgressIndicator());
                                       }
-
                                       final quantity = snapshot.data ?? 0;
-
                                       if (quantity <= 0) {
                                         return Text(
                                           'Нет в наличии',
                                           style: TextStyle(
-                                            color: wishListIcon ,
+                                            color: wishListIcon,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16,
                                           ),
                                         );
                                       }
-
                                       return ElevatedButton(
                                         onPressed: () async {
-                                          final selectedParamName = selectedParameter.value;
-                                          final hasParams = await hasParameters(product['ProductID']);
-
-                                          if (hasParams && selectedParamName == null) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                          final selectedParamName =
+                                              selectedParameter.value;
+                                          final hasParams = await hasParameters(
+                                              product['ProductID']);
+                                          if (hasParams &&
+                                              selectedParamName == null) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
                                               SnackBar(
-                                                content: Text('Выберите параметры товара перед добавлением в корзину'),
+                                                content: Text(
+                                                    'Выберите параметры товара перед добавлением в корзину'),
                                               ),
                                             );
                                             return;
                                           }
-
-                                          final parametrId = selectedParamName == null
+                                          final parametrId =
+                                          selectedParamName == null
                                               ? null
-                                              : await fetchParametrId(selectedParamName);
-
-                                          addToCart(context, product['ProductID'], parametrId);
+                                              : await fetchParametrId(
+                                              selectedParamName);
+                                          addToCart(context,
+                                              product['ProductID'], parametrId);
                                         },
                                         child: const Text('Добавить в корзину'),
                                       );
@@ -382,7 +441,6 @@ class ProductDetailScreen extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 20),
-
                               Text(
                                 'Описание продукта:',
                                 style: TextStyle(
@@ -393,11 +451,13 @@ class ProductDetailScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               FutureBuilder<String>(
-                                future: formatProductDescription(product['ProductID']),
+                                future:
+                                formatProductDescription(product['ProductID']),
                                 builder: (context, snapshot) {
                                   if (snapshot.hasData) {
-                                    return Text(
-                                      snapshot.data!,
+                                    return ExpandableText(
+                                      text: snapshot.data!,
+                                      maxLines: 3,
                                       style: TextStyle(
                                         fontSize: 16,
                                         height: 1.5,

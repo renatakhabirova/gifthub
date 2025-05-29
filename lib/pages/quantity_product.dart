@@ -1,9 +1,6 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-
-  final _client = Supabase.instance.client;
-
   Future<int?> fetchAvailableQuantity(int productId, [String? parametrName]) async {
     final supabase = Supabase.instance.client;
     try {

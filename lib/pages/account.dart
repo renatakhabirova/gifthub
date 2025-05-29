@@ -110,8 +110,17 @@ class _AccountPageState extends State<AccountPage> {
                 );
                 checkUnreadNotifications();
               },
-            )
-
+            ),
+            ListTile(
+              leading: Icon(Icons.credit_card_outlined),
+              title: Text('Промокоды'),
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                    '/promoCodes',
+                );
+              },
+            ),
           ],
         ),
       ),

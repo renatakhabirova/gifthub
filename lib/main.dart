@@ -11,8 +11,10 @@ import 'package:gifthub/pages/notifications.dart';
 import 'package:gifthub/pages/orders.dart';
 import 'package:gifthub/pages/product_card.dart';
 import 'package:gifthub/pages/profilepage.dart';
+import 'package:gifthub/pages/promo_codes_page.dart';
 import 'package:gifthub/pages/registration.dart';
 import 'package:gifthub/pages/wishlist.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gifthub/themes/primarytheme.dart';
@@ -25,7 +27,7 @@ import 'env_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setPathUrlStrategy();
-
+  await initializeDateFormatting();
   try {
 
     await Supabase.initialize(
@@ -91,6 +93,7 @@ class GiftHub extends StatelessWidget {
         '/profile': (context) => ProfilePage(),
         '/orders': (context) => OrderPage(),
         '/notifications': (context) => NotificationsPage(),
+        '/promoCodes': (context) => PromoCodesPage(),
         '/product/:id': (context) {
           final arguments = ModalRoute.of(context)?.settings.arguments;
           if (arguments is Map<String, dynamic>) {

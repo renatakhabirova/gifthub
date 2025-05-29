@@ -9,15 +9,25 @@ import 'package:intl/date_symbol_data_local.dart';
 import '../services/payment_service.dart';
 
 final client = Supabase.instance.client;
-
+Future<void> markPromoAsUsed(String userId, int promoCodeId) async {
+  await Supabase.instance.client
+      .from('ClientPromoCode')
+      .update({
+    'IsUsed': true,
+    'UsedAt': DateTime.now().toUtc().toIso8601String(),
+  })
+      .eq('ClientID', userId)
+      .eq('PromoCodeID', promoCodeId);
+}
 class CheckoutScreen extends StatefulWidget {
   final double totalCost;
   final List<Map<String, dynamic>> cartItems;
-
+  final String? promoCode;
   const CheckoutScreen({
     Key? key,
     required this.totalCost,
     required this.cartItems,
+    this.promoCode,
   }) : super(key: key);
 
   @override
@@ -55,8 +65,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.initState();
     loadCities();
     initializeDateFormatting();
+    _markPromoIfNeeded();
   }
-
+  void _markPromoIfNeeded() async {
+    if (widget.promoCode != null && widget.promoCode!.isNotEmpty) {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final promoCodeId = await getPromoCodeIdByCode(widget.promoCode!);
+      if (userId != null && promoCodeId != null) {
+        await markPromoAsUsed(userId, promoCodeId);
+      }
+    }
+  }
+  Future<int?> getPromoCodeIdByCode(String code) async {
+    final promo = await Supabase.instance.client
+        .from('PromoCode')
+        .select('PromoCodeID')
+        .eq('Code', code)
+        .maybeSingle();
+    return promo?['PromoCodeID'] as int?;
+  }
   Future<String?> createTemporaryOrder() async {
     try {
       setState(() => isOrderLoading = true);
@@ -161,7 +188,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         SnackBar(content: Text('Заказ успешно оплачен!')),
       );
 
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.pushNamed(
+          context,
+          '/main'
+      );
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -310,7 +340,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             Text(
               'Выберите город:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             if (cities.isNotEmpty)
               DropdownButtonFormField<int>(
@@ -406,7 +436,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             ),
+            SizedBox(height: 10),
             Container(
+
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: isOrderLoading ? null : processPayment,

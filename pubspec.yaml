@@ -59,3 +59,8 @@ flutter:
     - family: segoeui
       fonts:
         - asset: fonts/segoeui.ttf
+    - family: NotoSans
+      fonts:
+        - asset: fonts/NotoSans-Regular.ttf
+        - asset: fonts/NotoSans-Bold.ttf
+

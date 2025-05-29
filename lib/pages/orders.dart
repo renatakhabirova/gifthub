@@ -13,7 +13,6 @@ class OrderPage extends StatefulWidget {
 class _OrderPageState extends State<OrderPage> {
   List<Map<String, dynamic>> orders = [];
   bool isLoading = true;
-
   @override
   void initState() {
     super.initState();
@@ -59,8 +58,8 @@ class _OrderPageState extends State<OrderPage> {
   String _formatDate(String? dateStr) {
     if (dateStr == null) return 'Дата не указана';
     try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('dd.MM.yyyy HH:mm').format(date);
+      final date = DateTime.parse('${dateStr}Z').toLocal();
+      return DateFormat('d MMMM y, HH:mm', 'ru').format(date.toLocal());
     } catch (e) {
       return 'Некорректная дата';
     }
@@ -172,6 +171,7 @@ class _OrderPageState extends State<OrderPage> {
                 Expanded(
                   child: Text(
                     'Создан: ${_formatDate(order['OrderCreateDate'])}',
+
                     style: const TextStyle(fontSize: 14),
                   ),
                 ),
