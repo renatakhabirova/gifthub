@@ -15,11 +15,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final _nameController = TextEditingController();
   final _surnameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _cityController = TextEditingController();
+
   final _birthdayController = TextEditingController();
-  final _streetController = TextEditingController();
-  final _houseController = TextEditingController();
-  final _apartmentController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _emailController = TextEditingController();
   String? _passwordError;
@@ -53,9 +50,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _phoneController.text = response['ClientPhone'] ?? '';
       _selectedCity = response['ClientCity'];
       _birthdayController.text = response['ClientBirthday'] ?? '';
-      _streetController.text = response['ClientStreet'] ?? '';
-      _houseController.text = response['ClientHouse'] ?? '';
-      _apartmentController.text = response['ClientApartment']?.toString() ?? '';
+
       _displayNameController.text = response['ClientDisplayname'] ?? '';
     });
   }
@@ -92,9 +87,7 @@ class _ProfilePageState extends State<ProfilePage> {
         'ClientPhone': _phoneController.text,
         'ClientCity': _selectedCity,
         'ClientBirthday': _birthdayController.text.isNotEmpty ? _birthdayController.text : null,
-        'ClientStreet': _streetController.text,
-        'ClientHouse': _houseController.text,
-        'ClientApartment': _apartmentController.text.isNotEmpty ? _apartmentController.text : null,
+
       }).eq('ClientID', userId);
 
       //  изменился ли email
@@ -253,6 +246,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 readOnly: true,
               ),
               SizedBox(height: 12),
+
 
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
