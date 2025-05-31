@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/themes/colors.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../services/payment_service.dart';
-import 'dart:html' as html;
+
 
 final client = Supabase.instance.client;
 Future<void> markPromoAsUsed(String userId, int promoCodeId) async {
@@ -211,11 +211,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() => isOrderLoading = false);
 
       if (paymentUrl != null) {
-        if (kIsWeb) {
-          // Для web открываем форму оплаты в текущем окне
-          html.window.location.href = paymentUrl;
-        } else {
-          // Для мобильных используем WebView
+
           final result = await Navigator.push<bool>(
             context,
             MaterialPageRoute(
@@ -233,7 +229,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               SnackBar(content: Text('Оплата не была завершена')),
             );
           }
-        }
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ошибка при создании платежа')),

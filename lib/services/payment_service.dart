@@ -5,22 +5,9 @@ import 'package:gifthub/env_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 Future<String?> createYooKassaPayment(double totalCost, String orderId) async {
-  if (kIsWeb) {
-    // Для web используем прямое перенаправление на форму оплаты
-    final String shopId = yookassaShopId;
-    final returnUrl = 'https://renatakhabirova.github.io/gifthub/';
 
-    // Создаем URL для формы оплаты
-    final String paymentFormUrl = 'https://yookassa.ru/checkout/payments/v2/payment-form?' +
-        'shop_id=$shopId' +
-        '&amount=${totalCost.toStringAsFixed(2)}' +
-        '&currency=RUB' +
-        '&description=${Uri.encodeComponent("Оплата заказа #$orderId")}' +
-        '&return_url=$returnUrl' +
-        '&order_id=$orderId';
 
-    return paymentFormUrl;
-  } else {
+
     // Для мобильных устройств используем существующий API
     final String shopId = yookassaShopId;
     final String secretKey = yookassaSecretKey;
@@ -62,5 +49,5 @@ Future<String?> createYooKassaPayment(double totalCost, String orderId) async {
       print('Ошибка при отправке запроса в ЮKassa: $error');
       return null;
     }
-  }
+
 }

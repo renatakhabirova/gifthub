@@ -3,7 +3,7 @@ import 'package:gifthub/themes/colors.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:html' as html;
+
 
 class PaymentWebViewScreen extends StatefulWidget {
   final String paymentUrl;
@@ -27,13 +27,10 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   @override
   void initState() {
     super.initState();
-    if (kIsWeb) {
-      // Открываем форму оплаты в новом окне
-      html.window.open(widget.paymentUrl, '_self');
-    } else {
+
       _initializeWebView();
     }
-  }
+
 
   void _initializeWebView() {
     _controller = WebViewController()
