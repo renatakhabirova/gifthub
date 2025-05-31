@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/themes/colors.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../services/payment_service.dart';
+import 'dart:html' as html;
 
 final client = Supabase.instance.client;
 Future<void> markPromoAsUsed(String userId, int promoCodeId) async {
@@ -202,53 +203,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> processPayment() async {
-    if (kIsWeb || Platform.isWindows) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Оплата недоступна'),
-          content:
-          Text('Оплата доступна только на мобильных устройствах Android.'),
-          actions: [
-            TextButton(
-              onPressed: Navigator.of(context).pop,
-              child: Text('OK'),
-            )
-          ],
-        ),
-      );
-      return;
-    }
-
     final orderId = await createTemporaryOrder();
     if (orderId == null) return;
 
     try {
-      final paymentUrl =
-      await createYooKassaPayment(widget.totalCost, orderId);
+      final paymentUrl = await createYooKassaPayment(widget.totalCost, orderId);
       setState(() => isOrderLoading = false);
 
       if (paymentUrl != null) {
-        final result = await Navigator.push<bool>(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PaymentWebViewScreen(
-              paymentUrl: paymentUrl,
-              orderId: orderId,
-            ),
-          ),
-        );
-
-        if (result == true) {
-          await handleSuccessfulPayment(orderId);
+        if (kIsWeb) {
+          // Для web открываем форму оплаты в текущем окне
+          html.window.location.href = paymentUrl;
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Оплата не была завершена')),
+          // Для мобильных используем WebView
+          final result = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentWebViewScreen(
+                paymentUrl: paymentUrl,
+                orderId: orderId,
+              ),
+            ),
           );
+
+          if (result == true) {
+            await handleSuccessfulPayment(orderId);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Оплата не была завершена')),
+            );
+          }
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка при создании платежа в Юкассе')),
+          SnackBar(content: Text('Ошибка при создании платежа')),
         );
       }
     } catch (error) {
