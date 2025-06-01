@@ -672,11 +672,13 @@ class _ResponsiveGridState extends State<ResponsiveGrid> {
                 Icon(Icons.location_on, size: 16, color: darkGreen),
                 SizedBox(width: 4),
                 Text(
+                  maxLines: 2,
                   'Товары доступные в городе $userCityName',
                   style: TextStyle(
                     color: darkGreen,
                     fontFamily: "segoeui",
-                    fontSize: 12,
+                    fontSize: 14,
+
                   ),
                 ),
               ],

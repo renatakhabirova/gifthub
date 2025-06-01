@@ -7,6 +7,8 @@ import 'package:gifthub/pages/checkout.dart';
 import 'package:gifthub/services/video_widget.dart';
 import 'package:gifthub/pages/quantity_product.dart';
 
+import '../services/city_availability_service.dart';
+import '../services/city_service.dart';
 import 'messages.dart';
 
 class CartPage extends StatefulWidget {
@@ -83,14 +85,26 @@ class _CartPageState extends State<CartPage> {
         return;
       }
 
+      // Get user's city
+      final cityService = CityService();
+      final userCity = await cityService.fetchUserCity();
+      final userCityId = userCity?['userCityId'];
+
+      if (userCityId == null) {
+        setState(() => isLoading = false);
+        return;
+      }
+
+      final cityAvailabilityService = CityAvailabilityService();
+
       final response = await supabase
           .from('Cart')
           .select('''
-          CartItemID,
-          Quantity,
-          Product(ProductID, ProductName, ProductCost, ProductQuantity, ProductPhoto(Photo)),
-          Parametr(ParametrID, ParametrName)
-        ''')
+        CartItemID,
+        Quantity,
+        Product(ProductID, ProductName, ProductCost, ProductQuantity, ProductPhoto(Photo)),
+        Parametr(ParametrID, ParametrName)
+      ''')
           .eq('ClientID', userId)
           .order('AddedAt', ascending: true);
 
@@ -104,24 +118,33 @@ class _CartPageState extends State<CartPage> {
         final quantity = item['Quantity'] as int? ?? 1;
 
         bool isInStock = false;
+        bool isAvailableInCity = false;
 
         if (product != null) {
           final productId = product['ProductID'];
 
-          if (parametr != null) {
-            final parametrId = parametr['ParametrID'];
-            final available =
-            await fetchParametrQuantity(productId, parametrId);
-            isInStock = available != null && available >= quantity;
-          } else {
-            final productQuantity = product['ProductQuantity'] as int? ?? 0;
-            isInStock = productQuantity >= quantity;
+          // Check city availability
+          isAvailableInCity = await cityAvailabilityService.isProductAvailableInCity(
+            productId,
+            userCityId,
+          );
+
+          if (isAvailableInCity) {
+            if (parametr != null) {
+              final parametrId = parametr['ParametrID'];
+              final available = await fetchParametrQuantity(productId, parametrId);
+              isInStock = available != null && available >= quantity;
+            } else {
+              final productQuantity = product['ProductQuantity'] as int? ?? 0;
+              isInStock = productQuantity >= quantity;
+            }
           }
         }
 
-        if (isInStock) {
+        if (isInStock && isAvailableInCity) {
           availableItems.add(item);
         } else {
+          item['notAvailableReason'] = !isAvailableInCity ? 'city' : 'stock';
           unavailableItems.add(item);
         }
       }
@@ -284,6 +307,9 @@ class _CartPageState extends State<CartPage> {
 
   Widget buildCheckoutButton(BuildContext context) {
     final totalCost = calculateTotalCost();
+    final hasUnavailableInCity = unavailableItems.any((item) =>
+    item['notAvailableReason'] == 'city');
+
     return Container(
       padding: const EdgeInsets.only(bottom: 90, right: 20, left: 20),
       decoration: BoxDecoration(color: backgroundBeige),
@@ -301,6 +327,13 @@ class _CartPageState extends State<CartPage> {
           ElevatedButton(
             onPressed: () async {
               await fetchCartItems();
+
+              if (hasUnavailableInCity) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Заказ невозможен. В корзине есть товары, недоступные в вашем городе.'),
+                ));
+                return;
+              }
 
               if (availableItems.isNotEmpty) {
                 Navigator.push(
@@ -466,6 +499,8 @@ class _CartPageState extends State<CartPage> {
         ? product['ProductPhoto'][0]['Photo']
         : 'https://picsum.photos/200/300';
 
+    final notAvailableReason = item['notAvailableReason'];
+
     return InkWell(
       onTap: () {
         Navigator.pushNamed(
@@ -523,15 +558,21 @@ class _CartPageState extends State<CartPage> {
                       ),
                     if (!isAvailable)
                       Text(
-                        'Нет в наличии',
+                        notAvailableReason == 'city'
+                            ? 'Нет в вашем городе'
+                            : 'Нет в наличии',
                         style: TextStyle(
-                            color: wishListIcon, fontWeight: FontWeight.bold),
+                          color: wishListIcon,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     SizedBox(height: 4),
                     Text(
                       '${product['ProductCost']} ₽',
-                      style:
-                      TextStyle(fontWeight: FontWeight.bold, color: darkGreen),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: darkGreen,
+                      ),
                     ),
                   ],
                 ),
@@ -548,7 +589,9 @@ class _CartPageState extends State<CartPage> {
                       final currentQuantity = item['Quantity'];
                       if (currentQuantity > 1) {
                         updateCartItemQuantity(
-                            item['CartItemID'], currentQuantity - 1);
+                          item['CartItemID'],
+                          currentQuantity - 1,
+                        );
                       }
                     },
                   ),
@@ -562,7 +605,9 @@ class _CartPageState extends State<CartPage> {
                     onPressed: () {
                       final currentQuantity = item['Quantity'];
                       updateCartItemQuantity(
-                          item['CartItemID'], currentQuantity + 1);
+                        item['CartItemID'],
+                        currentQuantity + 1,
+                      );
                     },
                   ),
                 ),
@@ -581,7 +626,7 @@ class _CartPageState extends State<CartPage> {
                   ),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-
 import 'package:gifthub/pages/payment_webview.dart';
 import 'package:gifthub/pages/windows_webview.dart';
 import 'package:intl/intl.dart';
@@ -10,7 +9,7 @@ import 'package:gifthub/themes/colors.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../services/payment_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+import 'package:gifthub/services/city_service.dart';
 
 final client = Supabase.instance.client;
 
@@ -47,32 +46,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? house;
   String? apartment;
   int? selectedCityId;
-  bool isLoading = false;
+  String? selectedCityName;
+  bool isLoading = true;
   bool isOrderLoading = false;
-  List<Map<String, dynamic>> cities = [];
-
-  Future<void> loadCities() async {
-    try {
-      final response = await client.from('City').select('CityID, City');
-      setState(() {
-        cities = List<Map<String, dynamic>>.from(response);
-        if (cities.isNotEmpty) {
-          selectedCityId = cities[0]['CityID'];
-        }
-      });
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка при загрузке городов: $error')),
-      );
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    loadCities();
     initializeDateFormatting();
+    loadUserCity();
     _markPromoIfNeeded();
+  }
+
+  Future<void> loadUserCity() async {
+    try {
+      final cityService = CityService();
+      final userCity = await cityService.fetchUserCity();
+
+      if (userCity != null) {
+        setState(() {
+          selectedCityId = userCity['userCityId'];
+          selectedCityName = userCity['userCityName'];
+          isLoading = false;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка при получении города пользователя')),
+        );
+        setState(() => isLoading = false);
+      }
+    } catch (error) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка при загрузке города: $error')),
+      );
+    }
   }
 
   void _markPromoIfNeeded() async {
@@ -100,7 +108,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (selectedCityId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Выберите город')),
+          SnackBar(content: Text('Ошибка: город не определён')),
         );
         setState(() => isOrderLoading = false);
         return null;
@@ -268,7 +276,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         backgroundColor: backgroundBeige,
         foregroundColor: darkGreen,
       ),
-      body: SafeArea(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
@@ -298,7 +308,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             final product = item['Product'];
                             final imageUrl = product['ProductPhoto']?.isNotEmpty == true
                                 ? product['ProductPhoto'][0]['Photo']
-                                : 'https://ivelkowygsgeutmxhdwd.supabase.co/storage/v1/object/public/PhotoProduct//no_product_photo.png ';
+                                : 'https://ivelkowygsgeutmxhdwd.supabase.co/storage/v1/object/public/PhotoProduct//no_product_photo.png';
 
                             return Padding(
                               padding: const EdgeInsets.only(right: 12),
@@ -326,7 +336,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         '${item['Quantity']}x',
                                         style: TextStyle(
                                             color: Colors.white,
-                                            fontSize: 12),
+                                            fontSize: 12
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -338,48 +349,48 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                       Divider(height: 30),
                       Text(
-                        'Выберите город:',
+                        'Адрес доставки:',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: darkGreen,
+                        ),
                       ),
-                      if (cities.isNotEmpty)
-                        DropdownButtonFormField<int>(
-                          value: selectedCityId,
-                          items: cities.map((city) {
-                            return DropdownMenuItem<int>(
-                              value: city['CityID'],
-                              child: Text(city['City']),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedCityId = value;
-                            });
-                          },
-                          decoration:
-                          InputDecoration(border: OutlineInputBorder()),
-                          dropdownColor: lightGrey,
+                      SizedBox(height: 10),
+                      Container(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'Город: ${selectedCityName ?? ""}',
                           style: TextStyle(
+                            fontSize: 16,
                             color: darkGreen,
                             fontFamily: 'segoeui',
-                            fontSize: 16,
                           ),
                         ),
+                      ),
                       SizedBox(height: 10),
                       TextField(
                         onChanged: (value) => street = value,
-                        decoration: InputDecoration(labelText: 'Улица'),
+                        decoration: InputDecoration(
+                          labelText: 'Улица',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                       SizedBox(height: 10),
                       TextField(
                         onChanged: (value) => house = value,
-                        decoration: InputDecoration(labelText: 'Дом'),
+                        decoration: InputDecoration(
+                          labelText: 'Дом',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                       SizedBox(height: 10),
                       TextField(
                         onChanged: (value) => apartment = value,
                         decoration: InputDecoration(
-                            labelText: 'Квартира (необязательно)'),
+                          labelText: 'Квартира (необязательно)',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                       SizedBox(height: 20),
                       Row(
@@ -390,22 +401,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               onPressed: () async {
                                 final selectedDate = await showDatePicker(
                                   context: context,
-                                  initialDate:
-                                  DateTime.now().add(Duration(days: 1)),
-                                  firstDate:
-                                  DateTime.now().add(Duration(days: 1)),
-                                  lastDate:
-                                  DateTime.now().add(Duration(days: 30)),
+                                  initialDate: DateTime.now().add(Duration(days: 1)),
+                                  firstDate: DateTime.now().add(Duration(days: 1)),
+                                  lastDate: DateTime.now().add(Duration(days: 30)),
                                 );
                                 if (selectedDate != null) {
                                   final selectedTime = await showTimePicker(
                                     context: context,
                                     initialTime: TimeOfDay.now(),
-                                    builder: (BuildContext context,
-                                        Widget? child) {
+                                    builder: (BuildContext context, Widget? child) {
                                       return MediaQuery(
-                                        data: MediaQuery.of(context).copyWith(
-                                            alwaysUse24HourFormat: true),
+                                        data: MediaQuery.of(context)
+                                            .copyWith(alwaysUse24HourFormat: true),
                                         child: child ?? SizedBox.shrink(),
                                       );
                                     },
@@ -432,26 +439,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 20),
                       Container(
                         width: double.infinity,
                         child: ElevatedButton(
-                            onPressed: isOrderLoading ? null : processPayment,
-                            child: isOrderLoading
-                                ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                              ),
-                            )
-                                : Text(
-                              'Оплатить ${widget.totalCost.toStringAsFixed(2)} ₽',
-                              style: TextStyle(
-                                  fontSize: 16, color: Colors.white),
-                            )),
+                          onPressed: isOrderLoading ? null : processPayment,
+                          child: isOrderLoading
+                              ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                              : Text(
+                            'Оплатить ${widget.totalCost.toStringAsFixed(2)} ₽',
+                            style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white
+                            ),
+                          ),
+                        ),
                       ),
-                      if (kIsWeb) // Показываем предупреждение для веба
+                      if (kIsWeb)
                         Padding(
                           padding: const EdgeInsets.only(top: 20),
                           child: Text(

@@ -178,7 +178,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 },
                 tileColor: notification['IsRead']
                     ? null
-                    : Colors.blue.withOpacity(0.1),
+                    : Colors.grey.withOpacity(0.1),
               ),
             );
           },
