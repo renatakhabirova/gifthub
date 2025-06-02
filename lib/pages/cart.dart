@@ -9,7 +9,7 @@ import 'package:gifthub/pages/quantity_product.dart';
 
 import '../services/city_availability_service.dart';
 import '../services/city_service.dart';
-import 'messages.dart';
+import '../services/messages.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -55,6 +55,8 @@ class _CartPageState extends State<CartPage> {
       table: 'Cart',
       callback: (payload, [ref]) {
         fetchCartItems();
+        print("Доступные товары: ${availableItems.length}");
+        print("Недоступные товары: ${unavailableItems.length}");
       },
     )
         .onPostgresChanges(
@@ -63,6 +65,8 @@ class _CartPageState extends State<CartPage> {
       table: 'Cart',
       callback: (payload, [ref]) {
         fetchCartItems();
+        print("Доступные товары: ${availableItems.length}");
+        print("Недоступные товары: ${unavailableItems.length}");
       },
     )
         .onPostgresChanges(
@@ -71,6 +75,8 @@ class _CartPageState extends State<CartPage> {
       table: 'Cart',
       callback: (payload, [ref]) {
         fetchCartItems();
+        print("Доступные товары: ${availableItems.length}");
+        print("Недоступные товары: ${unavailableItems.length}");
       },
     )
         .subscribe();
@@ -85,7 +91,6 @@ class _CartPageState extends State<CartPage> {
         return;
       }
 
-      // Get user's city
       final cityService = CityService();
       final userCity = await cityService.fetchUserCity();
       final userCityId = userCity?['userCityId'];
@@ -108,7 +113,6 @@ class _CartPageState extends State<CartPage> {
           .eq('ClientID', userId)
           .order('AddedAt', ascending: true);
 
-      // Очистка списков
       availableItems.clear();
       unavailableItems.clear();
 
@@ -119,11 +123,11 @@ class _CartPageState extends State<CartPage> {
 
         bool isInStock = false;
         bool isAvailableInCity = false;
+        int itemCost = product['ProductCost'] ?? 0;
 
         if (product != null) {
           final productId = product['ProductID'];
 
-          // Check city availability
           isAvailableInCity = await cityAvailabilityService.isProductAvailableInCity(
             productId,
             userCityId,
@@ -132,8 +136,11 @@ class _CartPageState extends State<CartPage> {
           if (isAvailableInCity) {
             if (parametr != null) {
               final parametrId = parametr['ParametrID'];
-              final available = await fetchParametrQuantity(productId, parametrId);
-              isInStock = available != null && available >= quantity;
+              final parametrData = await fetchParametrData(productId, parametrId);
+              isInStock = parametrData != null && (parametrData['quantity'] ?? 0) >= quantity;
+              if (parametrData != null && parametrData['cost'] != null) {
+                itemCost = parametrData['cost'];
+              }
             } else {
               final productQuantity = product['ProductQuantity'] as int? ?? 0;
               isInStock = productQuantity >= quantity;
@@ -141,11 +148,14 @@ class _CartPageState extends State<CartPage> {
           }
         }
 
+        final updatedItem = Map<String, dynamic>.from(item);
+        updatedItem['effectiveCost'] = itemCost;
+
         if (isInStock && isAvailableInCity) {
-          availableItems.add(item);
+          availableItems.add(updatedItem);
         } else {
-          item['notAvailableReason'] = !isAvailableInCity ? 'city' : 'stock';
-          unavailableItems.add(item);
+          updatedItem['notAvailableReason'] = !isAvailableInCity ? 'city' : 'stock';
+          unavailableItems.add(updatedItem);
         }
       }
 
@@ -160,12 +170,33 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
+  Future<Map<String, dynamic>?> fetchParametrData(int productId, int parametrId) async {
+    try {
+      final response = await supabase
+          .from('ParametrProduct')
+          .select('Quantity, Cost')
+          .eq('ProductID', productId)
+          .eq('ParametrID', parametrId)
+          .maybeSingle();
+
+      if (response != null) {
+        return {
+          'quantity': response['Quantity'] as int?,
+          'cost': response['Cost'],
+        };
+      }
+      return null;
+    } catch (e) {
+      print('Ошибка получения данных параметра: $e');
+      return null;
+    }
+  }
+
   double calculateTotalCost() {
     double total = 0;
     for (var item in availableItems) {
-      final product = item['Product'];
       final quantity = item['Quantity'] ?? 1;
-      final cost = product['ProductCost'] ?? 0.0;
+      final cost = item['effectiveCost'] ?? item['Product']['ProductCost'] ?? 0.0;
       total += cost * quantity;
     }
     if (_promoApplied && _discount > 0) {
@@ -221,7 +252,7 @@ class _CartPageState extends State<CartPage> {
                         _promoError = null;
                       });
                     },
-                      child: Text('Удалить', style: TextStyle(color: wishListIcon),),
+                    child: Text('Удалить', style: TextStyle(color: wishListIcon),),
                   ),
                 ],
               ),
@@ -241,7 +272,6 @@ class _CartPageState extends State<CartPage> {
     }
 
     try {
-      // 1. Найти промокод в PromoCode
       final promo = await supabase
           .from('PromoCode')
           .select('PromoCodeID, Discount, ValidUntil')
@@ -269,7 +299,6 @@ class _CartPageState extends State<CartPage> {
         return;
       }
 
-      // 2. Проверить, использовал ли пользователь этот промокод
       final userId = supabase.auth.currentUser?.id;
       final promoCodeId = promo['PromoCodeID'] as int;
       final clientPromo = await supabase
@@ -369,7 +398,6 @@ class _CartPageState extends State<CartPage> {
       String errorMessage = MessagesRu.error;
       String productName = '';
 
-      // Получаем название товара для отображения в ошибке
       try {
         final cartItem = await supabase
             .from('Cart')
@@ -380,9 +408,7 @@ class _CartPageState extends State<CartPage> {
         if (cartItem != null && cartItem['Product'] != null) {
           productName = cartItem['Product']['ProductName'] ?? '';
         }
-      } catch (e) {
-
-      }
+      } catch (e) {}
 
       if (error.toString().contains('количество')) {
         errorMessage = productName.isNotEmpty
@@ -399,7 +425,7 @@ class _CartPageState extends State<CartPage> {
   Future<void> removeCartItem(int cartItemId) async {
     try {
       await supabase.from('Cart').delete().eq('CartItemID', cartItemId);
-      fetchCartItems();
+
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Ошибка удаления товара: $error'),
@@ -499,6 +525,7 @@ class _CartPageState extends State<CartPage> {
         ? product['ProductPhoto'][0]['Photo']
         : 'https://picsum.photos/200/300';
 
+    final effectiveCost = item['effectiveCost'] ?? product['ProductCost'];
     final notAvailableReason = item['notAvailableReason'];
 
     return InkWell(
@@ -568,7 +595,7 @@ class _CartPageState extends State<CartPage> {
                       ),
                     SizedBox(height: 4),
                     Text(
-                      '${product['ProductCost']} ₽',
+                      '$effectiveCost ₽',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: darkGreen,

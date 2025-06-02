@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:gifthub/themes/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/pages/mainpages.dart';
-import 'package:gifthub/pages/messages.dart';
+import 'package:gifthub/services/messages.dart';
 
 class Registration extends StatelessWidget {
   @override

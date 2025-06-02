@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/pages/mainpages.dart';
 import '../themes/colors.dart';
-import 'messages.dart';
+import '../services/messages.dart';
 
 class ProfilePage extends StatefulWidget {
   @override

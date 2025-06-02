@@ -467,7 +467,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           child: Text(
                             'Оплата доступна только в приложениях для Windows и Android',
                             style: TextStyle(
-                              color: Colors.red,
+
                               fontWeight: FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,

@@ -10,7 +10,7 @@ class PromoCodesPage extends StatefulWidget {
 }
 
 class _PromoCodesPageState extends State<PromoCodesPage> {
-  List<Map<String, dynamic>> _promoCodes = [];
+
   List<Map<String, dynamic>> _clientPromoCodes = [];
   bool _loading = true;
   String? _error;

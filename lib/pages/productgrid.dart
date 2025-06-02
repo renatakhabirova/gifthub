@@ -725,6 +725,7 @@ class _ResponsiveGridState extends State<ResponsiveGrid> {
           },
           child: Scaffold(
             appBar: AppBar(
+              automaticallyImplyLeading: false,
               title: Text('Каталог товаров'),
               actions: [
                 IconButton(
