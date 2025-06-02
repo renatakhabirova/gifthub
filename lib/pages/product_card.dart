@@ -7,15 +7,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:gifthub/services/wishlist_service.dart';
 import 'package:gifthub/themes/colors.dart';
 import 'package:gifthub/services/add_to_cart.dart';
-import 'package:gifthub/pages/quantity_product.dart';
+import 'package:gifthub/pages/quantity_product.dart'; // Импортируем файл с функциями
 import 'package:gifthub/services/city_service.dart';
-
 import '../services/city_availability_service.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   final Map<String, dynamic> product;
   final Function(bool)? onBack;
-
   const ProductDetailScreen({
     Key? key,
     required this.product,
@@ -64,16 +62,16 @@ class ProductDetailScreen extends StatelessWidget {
                         return isVideoUrl(mediaUrl)
                             ? ClipRRect(
                           child: VideoPlayerScreen(
-                              videoUrl: mediaUrl, isFullscreen: true),
+                            videoUrl: mediaUrl,
+                            isFullscreen: true,
+                          ),
                         )
                             : InteractiveViewer(
                           child: Image.network(
                             mediaUrl,
                             fit: BoxFit.contain,
-                            errorBuilder:
-                                (context, error, stackTrace) =>
-                                Icon(Icons.image_not_supported,
-                                    color: darkGreen),
+                            errorBuilder: (context, error, stackTrace) =>
+                                Icon(Icons.image_not_supported, color: darkGreen),
                           ),
                         );
                       },
@@ -118,7 +116,7 @@ class ProductDetailScreen extends StatelessWidget {
       final supabase = Supabase.instance.client;
       final response = await supabase
           .from('ParametrProduct')
-          .select('Parametr(ParametrName)')
+          .select('Parametr(ParametrName), Cost')
           .eq('ProductID', productId);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
@@ -152,10 +150,8 @@ class ProductDetailScreen extends StatelessWidget {
   Future<bool> checkCityAvailability(int productId) async {
     final cityService = CityService();
     final cityAvailabilityService = CityAvailabilityService();
-
     final userCity = await cityService.fetchUserCity();
     if (userCity == null || userCity['userCityId'] == null) return false;
-
     return await cityAvailabilityService.isProductAvailableInCity(
         productId,
         userCity['userCityId']!
@@ -166,14 +162,13 @@ class ProductDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<String> mediaUrls = product['ProductPhoto']?.isNotEmpty ?? false
         ? List<String>.from(product['ProductPhoto'].map((e) => e['Photo']))
-        : ['https://picsum.photos/200/300 '];
-
+        : ['https://picsum.photos/200/300'];
     final isInWishlist = ValueNotifier<bool>(false);
     checkInWishlist(product['ProductID']).then((value) {
       isInWishlist.value = value;
     });
-
     final selectedParameter = ValueNotifier<String?>(null);
+    final selectedParameterCost = ValueNotifier<double?>(product['ProductCost'].toDouble());
 
     return WillPopScope(
       onWillPop: () async {
@@ -307,12 +302,17 @@ class ProductDetailScreen extends StatelessWidget {
                                         color: darkGreen,
                                       ),
                                     )),
-                              Text(
-                                '${product['ProductCost']} ₽',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: darkGreen,
-                                ),
+                              ValueListenableBuilder<double?>(
+                                valueListenable: selectedParameterCost,
+                                builder: (context, cost, child) {
+                                  return Text(
+                                    '${cost ?? product['ProductCost'].toDouble()} ₽',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      color: darkGreen,
+                                    ),
+                                  );
+                                },
                               ),
                               const SizedBox(height: 8),
                               FutureBuilder<List<Map<String, dynamic>>>(
@@ -330,6 +330,7 @@ class ProductDetailScreen extends StatelessWidget {
                                         spacing: 8,
                                         children: parameters.map((param) {
                                           final name = param['Parametr']['ParametrName'];
+                                          final cost = param['Cost'].toDouble(); // Преобразование в double
                                           final isSelected = selected == name;
                                           return FutureBuilder<int?>(
                                             future: fetchParametrId(name)
@@ -345,7 +346,10 @@ class ProductDetailScreen extends StatelessWidget {
                                                 selected: isSelected,
                                                 showCheckmark: false,
                                                 onSelected: isAvailable
-                                                    ? (_) => selectedParameter.value = name
+                                                    ? (_) {
+                                                  selectedParameter.value = name;
+                                                  selectedParameterCost.value = cost;
+                                                }
                                                     : null,
                                                 selectedColor:
                                                 isAvailable ? darkGreen : Colors.grey,
@@ -367,8 +371,7 @@ class ProductDetailScreen extends StatelessWidget {
                                                   ),
                                                 ),
                                                 labelStyle: TextStyle(
-                                                  color:
-                                                  isSelected && isAvailable
+                                                  color: isSelected && isAvailable
                                                       ? Colors.white
                                                       : darkGreen,
                                                 ),
@@ -382,14 +385,30 @@ class ProductDetailScreen extends StatelessWidget {
                                 },
                               ),
                               const SizedBox(height: 20),
+                              FutureBuilder<int?>(
+                                future: fetchAvailableQuantity(
+                                    product['ProductID'], selectedParameter.value),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+                                  final quantity = snapshot.data ?? 0;
+                                  return Text(
+                                    'Количество: $quantity',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: darkGreen,
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 20),
                               Row(
                                 children: [
                                   FutureBuilder<(int?, bool)>(
                                     future: () async {
-                                      final quantity = await (selectedParameter.value != null
-                                          ? fetchParametrId(selectedParameter.value!)
-                                          .then((id) => fetchParametrQuantity(product['ProductID'], id!))
-                                          : fetchAvailableQuantity(product['ProductID']));
+                                      final quantity = await fetchAvailableQuantity(
+                                          product['ProductID'], selectedParameter.value);
                                       final isAvailable = await checkCityAvailability(product['ProductID']);
                                       return (quantity, isAvailable);
                                     }(),
@@ -397,11 +416,9 @@ class ProductDetailScreen extends StatelessWidget {
                                       if (snapshot.connectionState == ConnectionState.waiting) {
                                         return const Center(child: CircularProgressIndicator());
                                       }
-
                                       final data = snapshot.data ?? (0, false);
                                       final quantity = data.$1 ?? 0;
                                       final isAvailableInCity = data.$2;
-
                                       if (!isAvailableInCity) {
                                         return Text(
                                           'Нет в вашем городе',
@@ -412,7 +429,6 @@ class ProductDetailScreen extends StatelessWidget {
                                           ),
                                         );
                                       }
-
                                       if (quantity <= 0) {
                                         return Text(
                                           'Нет в наличии',
@@ -423,7 +439,6 @@ class ProductDetailScreen extends StatelessWidget {
                                           ),
                                         );
                                       }
-
                                       return ElevatedButton(
                                         onPressed: () async {
                                           final selectedParamName = selectedParameter.value;
