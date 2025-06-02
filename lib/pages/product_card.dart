@@ -384,25 +384,8 @@ class ProductDetailScreen extends StatelessWidget {
                                   );
                                 },
                               ),
-                              const SizedBox(height: 20),
-                              FutureBuilder<int?>(
-                                future: fetchAvailableQuantity(
-                                    product['ProductID'], selectedParameter.value),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return const Center(child: CircularProgressIndicator());
-                                  }
-                                  final quantity = snapshot.data ?? 0;
-                                  return Text(
-                                    'Количество: $quantity',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: darkGreen,
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 20),
+
+                              const SizedBox(height: 10),
                               Row(
                                 children: [
                                   FutureBuilder<(int?, bool)>(
